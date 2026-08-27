@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arithmetic Game</title>
+<style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .container { width: 760px; padding: 40px; }
+  h1 { font-size: 42px; margin: 0 0 30px; }
+  .settings { font-size: 22px; line-height: 1.5; }
+  .operation { margin: 14px 0; }
+  .operation-title { display: flex; align-items: center; gap: 8px; }
+  .range { margin-left: 45px; font-size: 20px; }
+  .note { margin-left: 45px; color: #666; font-size: 18px; }
+  input[type="number"] {
+    width: 62px; padding: 6px; font-size: 18px;
+    text-align: center; border: 1px solid #ccc; border-radius: 3px;
+  }
+  input[type="checkbox"], input[type="radio"] {
+    width: 20px; height: 20px; vertical-align: middle;
+  }
+  .time-setting, .mode-setting { margin-top: 24px; }
+  .mode-setting label { display: block; margin: 7px 0; }
+  button {
+    padding: 10px 22px; font-size: 20px; cursor: pointer;
+    border: 1px solid #bbb; border-radius: 8px; background: white;
+  }
+  #start { margin-top: 28px; }
+  #game { text-align: center; }
+  #sessionTimer { font-size: 25px; color: #555; margin-bottom: 15px; }
+  #problem { font-size: 58px; font-weight: bold; margin: 25px 0 15px; min-height: 70px; }
+  #timer { font-size: 24px; color: #666; min-height: 35px; }
+  #answer { font-size: 48px; font-weight: bold; min-height: 65px; margin-top: 10px; }
+  #resultMark { font-size: 34px; min-height: 40px; margin-top: 4px; }
+  #next { display: none; margin-top: 15px; }
+  #sessionDone { font-size: 22px; margin-top: 15px; }
+  .hint { font-size: 16px; color: #777; margin-top: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div id="settings">
+    <h1>Arithmetic Game</h1>
+
+    <div class="settings">
+      <div class="operation">
+        <div class="operation-title">
+          <input type="checkbox" id="add" checked>
+          <label for="add">Addition</label>
+        </div>
+        <div class="range">
+          Range: (
+          <input id="addMin1" type="number" value="2">
+          to
+          <input id="addMax1" type="number" value="100">
+          )
+          +
+          (
+          <input id="addMin2" type="number" value="2">
+          to
+          <input id="addMax2" type="number" value="100">
+          )
+        </div>
+      </div>
+
+      <div class="operation">
+        <div class="operation-title">
+          <input type="checkbox" id="sub" checked>
+          <label for="sub">Subtraction</label>
+        </div>
+        <div class="note">Addition problems in reverse.</div>
+      </div>
+
+      <div class="operation">
+        <div class="operation-title">
+          <input type="checkbox" id="mul" checked>
+          <label for="mul">Multiplication</label>
+        </div>
+        <div class="range">
+          Range: (
+          <input id="mulMin1" type="number" value="2">
+          to
+          <input id="mulMax1" type="number" value="12">
+          )
+          ×
+          (
+          <input id="mulMin2" type="number" value="2">
+          to
+          <input id="mulMax2" type="number" value="100">
+          )
+        </div>
+      </div>
+
+      <div class="operation">
+        <div class="operation-title">
+          <input type="checkbox" id="div" checked>
+          <label for="div">Division</label>
+        </div>
+        <div class="note">Multiplication problems in reverse.</div>
+      </div>
+
+      <div class="time-setting">
+        Time before answer:
+        <input id="timeInput" type="number" value="3" min="0.1" step="0.1">
+        seconds
+      </div>
+
+      <div class="god-setting" style="margin-top:24px;">
+        <label>
+          <input type="checkbox" id="godMode">
+          God Mode — type your answer
+        </label>
+      </div>
+
+      <div class="mode-setting">
+        <div>Mode:</div>
+        <label>
+          <input type="radio" name="mode" value="manual" checked>
+          Manual — click Next
+        </label>
+        <label>
+          <input type="radio" name="mode" value="timed">
+          Timed session — automatic Next
+        </label>
+
+        <div id="sessionDurationRow" style="display:none; margin-left:28px;">
+          Session duration:
+          <input id="sessionDuration" type="number" value="120" min="1" step="1">
+          seconds
+        </div>
+      </div>
+
+      <button id="start" type="button">Start</button>
+    </div>
+  </div>
+
+  <div id="game" style="display:none;">
+    <div id="sessionTimer"></div>
+    <div id="problem"></div>
+    <div id="timer"></div>
+    <div id="answer"></div>
+    <div id="resultMark" aria-live="polite"></div>
+    <input id="userAnswer" type="text" inputmode="numeric" autocomplete="off"
+      placeholder="Type your answer"
+      style="display:none; font-size:28px; width:180px; padding:8px; text-align:center;">
+    <button id="next" type="button">Next</button>
+    <div id="sessionDone"></div>
+    <div class="hint">In manual mode, press Space for Next.</div>
+  </div>
+
+</div>
+
+<script>
+let currentAnswer = null;
+let questionTimer = null;
+let sessionTimer = null;
+let timeLimit = 3;
+let mode = "manual";
+let sessionEndTime = null;
+let questionCount = 0;
+let correctCount = 0;
+let running = false;
+let godMode = false;
+let answerShown = false;
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function value(id) {
+  return parseInt(document.getElementById(id).value, 10);
+}
+
+function generateProblem() {
+  const operations = [];
+  if (document.getElementById("add").checked) operations.push("+");
+  if (document.getElementById("sub").checked) operations.push("-");
+  if (document.getElementById("mul").checked) operations.push("×");
+  if (document.getElementById("div").checked) operations.push("÷");
+
+  if (operations.length === 0) {
+    alert("Select at least one operation.");
+    return null;
+  }
+
+  const op = operations[randomInt(0, operations.length - 1)];
+  let a, b;
+
+  if (op === "+" || op === "-") {
+    a = randomInt(value("addMin1"), value("addMax1"));
+    b = randomInt(value("addMin2"), value("addMax2"));
+
+    if (op === "+") {
+      currentAnswer = a + b;
+      return `${a} + ${b}`;
+    } else {
+      currentAnswer = b;
+      return `${a + b} − ${a}`;
+    }
+  }
+
+  a = randomInt(value("mulMin1"), value("mulMax1"));
+  b = randomInt(value("mulMin2"), value("mulMax2"));
+
+  if (op === "×") {
+    currentAnswer = a * b;
+    return `${a} × ${b}`;
+  } else {
+    currentAnswer = b;
+    return `${a * b} ÷ ${a}`;
+  }
+}
+
+function showSettings() {
+  running = false;
+  clearInterval(questionTimer);
+  clearInterval(sessionTimer);
+  document.getElementById("game").style.display = "none";
+  document.getElementById("settings").style.display = "block";
+}
+
+function finishSession() {
+  running = false;
+  clearInterval(questionTimer);
+  clearInterval(sessionTimer);
+  document.getElementById("problem").textContent = "Finished!";
+  document.getElementById("timer").textContent = "";
+  document.getElementById("answer").textContent = "";
+  document.getElementById("resultMark").textContent = "";
+  document.getElementById("resultMark").style.color = "";
+  document.getElementById("next").style.display = "none";
+  document.getElementById("userAnswer").style.display = "none";
+  document.getElementById("sessionTimer").textContent = "Session: 0.0 s";
+
+  if (godMode && mode === "timed") {
+    const accuracy = questionCount > 0
+      ? Math.round((correctCount / questionCount) * 100)
+      : 0;
+
+    document.getElementById("sessionDone").innerHTML =
+      "<strong>God Mode Score</strong><br>" +
+      "Calculations proposed: " + questionCount + "<br>" +
+      "Correct before time limit: " + correctCount + "<br>" +
+      "Accuracy: " + accuracy + "%";
+  } else {
+    document.getElementById("sessionDone").textContent =
+      questionCount + " problems completed";
+  }
+}
+
+function updateSessionClock() {
+  if (!running || mode !== "timed") return;
+
+  const remaining = Math.max(0, sessionEndTime - Date.now());
+  document.getElementById("sessionTimer").textContent =
+    "Session: " + (remaining / 1000).toFixed(1) + " s";
+
+  if (remaining <= 0) finishSession();
+}
+
+function revealAnswer() {
+  if (!running) return;
+
+  clearInterval(questionTimer);
+  answerShown = true;
+
+  document.getElementById("timer").textContent = "0.0 s";
+  // Always show the correct answer at the end of the countdown,
+  // including in God Mode.
+  document.getElementById("answer").textContent = currentAnswer;
+  document.getElementById("resultMark").textContent = "";
+
+  document.getElementById("userAnswer").style.display = "none";
+
+  if (mode === "timed") {
+    const answerDisplayTime = 700;
+
+    setTimeout(() => {
+      if (!running) return;
+
+      if (Date.now() >= sessionEndTime) {
+        finishSession();
+      } else {
+        nextProblem();
+      }
+    }, answerDisplayTime);
+  } else {
+    document.getElementById("next").style.display = "inline-block";
+  }
+}
+
+function checkGodAnswer() {
+  if (!running || !godMode || answerShown) return;
+
+  const input = document.getElementById("userAnswer");
+  const raw = input.value.trim();
+
+  // Let the user type the complete number freely.
+  // Do not evaluate partial answers.
+  if (!/^-?\d+$/.test(raw)) return;
+
+  const userValue = parseInt(raw, 10);
+
+  if (userValue === currentAnswer) {
+    correctCount++;
+    answerShown = true;
+    clearInterval(questionTimer);
+
+    // Show exactly the number the user got right + green check.
+    document.getElementById("answer").textContent = raw;
+    document.getElementById("resultMark").textContent = "✓";
+    document.getElementById("resultMark").style.color = "#20a040";
+    input.style.display = "none";
+
+    if (mode === "timed") {
+      setTimeout(() => {
+        if (!running) return;
+
+        if (Date.now() >= sessionEndTime) {
+          finishSession();
+        } else {
+          nextProblem();
+        }
+      }, 700);
+    } else {
+      document.getElementById("next").style.display = "inline-block";
+    }
+  }
+}
+function nextProblem() {
+  if (!running) return;
+
+  clearInterval(questionTimer);
+
+  if (mode === "timed" && Date.now() >= sessionEndTime) {
+    finishSession();
+    return;
+  }
+
+  const problem = generateProblem();
+  if (!problem) return;
+
+  questionCount++;
+  answerShown = false;
+  document.getElementById("problem").textContent = problem;
+  document.getElementById("answer").textContent = "";
+  document.getElementById("resultMark").textContent = "";
+  document.getElementById("resultMark").style.color = "";
+  document.getElementById("next").style.display = "none";
+
+  const answerInput = document.getElementById("userAnswer");
+  answerInput.value = "";
+  document.getElementById("resultMark").textContent = "";
+  if (godMode) {
+    answerInput.style.display = "inline-block";
+    setTimeout(() => answerInput.focus(), 0);
+  } else {
+    answerInput.style.display = "none";
+  }
+
+  let remaining = timeLimit;
+  document.getElementById("timer").textContent =
+    remaining.toFixed(1) + " s";
+
+  const startTime = Date.now();
+
+  questionTimer = setInterval(() => {
+    remaining = timeLimit - (Date.now() - startTime) / 1000;
+
+    if (remaining <= 0) {
+      revealAnswer();
+    } else {
+      document.getElementById("timer").textContent =
+        remaining.toFixed(1) + " s";
+    }
+  }, 50);
+}
+
+function start() {
+  timeLimit = parseFloat(document.getElementById("timeInput").value);
+  mode = document.querySelector('input[name="mode"]:checked').value;
+  godMode = document.getElementById("godMode").checked;
+
+  if (!Number.isFinite(timeLimit) || timeLimit <= 0) {
+    alert("Enter a valid time before the answer.");
+    return;
+  }
+
+  if (mode === "timed") {
+    const duration = parseFloat(document.getElementById("sessionDuration").value);
+    if (!Number.isFinite(duration) || duration <= 0) {
+      alert("Enter a valid session duration.");
+      return;
+    }
+    sessionEndTime = Date.now() + duration * 1000;
+  }
+
+  running = true;
+  questionCount = 0;
+  correctCount = 0;
+  clearInterval(questionTimer);
+  clearInterval(sessionTimer);
+
+  document.getElementById("settings").style.display = "none";
+  document.getElementById("game").style.display = "block";
+  document.getElementById("sessionDone").textContent = "";
+
+  if (mode === "timed") {
+    document.getElementById("sessionTimer").style.display = "block";
+    updateSessionClock();
+    sessionTimer = setInterval(updateSessionClock, 100);
+  } else {
+    document.getElementById("sessionTimer").style.display = "none";
+  }
+
+  nextProblem();
+}
+
+document.querySelectorAll('input[name="mode"]').forEach(radio => {
+  radio.addEventListener("change", () => {
+    document.getElementById("sessionDurationRow").style.display =
+      radio.value === "timed" && radio.checked ? "block" : "none";
+  });
+});
+
+document.getElementById("start").addEventListener("click", start);
+document.getElementById("next").addEventListener("click", nextProblem);
+document.getElementById("userAnswer").addEventListener("input", (event) => {
+  // Keep only digits and an optional leading minus sign.
+  let v = event.target.value.replace(/[^0-9-]/g, "");
+  if (v.indexOf("-") > 0) v = v.replace(/-/g, "");
+  if (v.startsWith("--")) v = "-" + v.slice(2);
+  event.target.value = v;
+  checkGodAnswer();
+});
+
+document.addEventListener("keydown", event => {
+  if (event.code === "Space" && running && mode === "manual") {
+    event.preventDefault();
+    if (document.getElementById("next").style.display !== "none") {
+      nextProblem();
+    }
+  }
+});
+</script>
+</body>
+</html>
