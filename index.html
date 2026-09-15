@@ -1,457 +1,224 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Arithmetic Game</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#E9EBEE">
+<title>Grid bets</title>
 <style>
-  body {
-    margin: 0;
-    min-height: 100vh;
-    font-family: Arial, sans-serif;
-    background: #f5f5f5;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  .container { width: 760px; padding: 40px; }
-  h1 { font-size: 42px; margin: 0 0 30px; }
-  .settings { font-size: 22px; line-height: 1.5; }
-  .operation { margin: 14px 0; }
-  .operation-title { display: flex; align-items: center; gap: 8px; }
-  .range { margin-left: 45px; font-size: 20px; }
-  .note { margin-left: 45px; color: #666; font-size: 18px; }
-  input[type="number"] {
-    width: 62px; padding: 6px; font-size: 18px;
-    text-align: center; border: 1px solid #ccc; border-radius: 3px;
-  }
-  input[type="checkbox"], input[type="radio"] {
-    width: 20px; height: 20px; vertical-align: middle;
-  }
-  .time-setting, .mode-setting { margin-top: 24px; }
-  .mode-setting label { display: block; margin: 7px 0; }
-  button {
-    padding: 10px 22px; font-size: 20px; cursor: pointer;
-    border: 1px solid #bbb; border-radius: 8px; background: white;
-  }
-  #start { margin-top: 28px; }
-  #game { text-align: center; }
-  #sessionTimer { font-size: 25px; color: #555; margin-bottom: 15px; }
-  #problem { font-size: 58px; font-weight: bold; margin: 25px 0 15px; min-height: 70px; }
-  #timer { font-size: 24px; color: #666; min-height: 35px; }
-  #answer { font-size: 48px; font-weight: bold; min-height: 65px; margin-top: 10px; }
-  #resultMark { font-size: 34px; min-height: 40px; margin-top: 4px; }
-  #next { display: none; margin-top: 15px; }
-  #sessionDone { font-size: 22px; margin-top: 15px; }
-  .hint { font-size: 16px; color: #777; margin-top: 20px; }
+:root{
+  --paper:#E9EBEE; --card:#FFF; --ink:#14161A; --muted:#71767F; --line:#DCE0E5;
+  --long:#0B7A63; --short:#AF382C; --longbg:#E3F1ED; --shortbg:#F7E6E3;
+  --r:10px;
+  --sans:ui-sans-serif,-apple-system,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overscroll-behavior:none}
+body{
+  background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.35;
+  -webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow:hidden;
+  padding:max(10px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom));
+  gap:8px;touch-action:manipulation;
+}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;touch-action:manipulation}
+button:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+
+.out{background:var(--card);border-radius:var(--r);padding:12px 14px 11px;flex:0 0 auto}
+.val{display:flex;align-items:baseline;gap:11px;min-height:50px}
+.num{font-family:var(--mono);font-size:clamp(40px,7vh,54px);font-weight:600;letter-spacing:-.035em;
+  font-variant-numeric:tabular-nums;line-height:1;transition:color .12s}
+.num.pos{color:var(--long)} .num.neg{color:var(--short)} .num.zero,.num.none{color:var(--muted)}
+.expr{font-family:var(--mono);font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.legs{display:flex;gap:5px;margin-top:8px;min-height:22px;align-items:center}
+.leg{font-family:var(--mono);font-size:12.5px;font-weight:600;padding:2px 8px;border-radius:6px}
+.leg.p{background:var(--longbg);color:var(--long)} .leg.m{background:var(--shortbg);color:var(--short)}
+.note{font-size:12.5px;color:var(--muted);margin-left:auto;text-align:right}
+.note.warn{color:var(--short)}
+
+.shapes{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;flex:0 0 auto}
+.sh{background:var(--card);border-radius:var(--r);padding:11px 0;font-family:var(--mono);font-size:17px;
+  font-weight:700;letter-spacing:.04em;display:flex;align-items:center;justify-content:center;transition:background .1s}
+.sh i{font-style:normal}
+.sh .a{color:var(--long)} .sh .b{color:var(--short)}
+.sh.on{background:var(--ink)} .sh.on .a,.sh.on .b{color:#fff}
+
+.entry{background:var(--card);border-radius:var(--r);display:flex;align-items:center;gap:10px;
+  padding:0 14px;flex:0 0 auto}
+.caret{font-family:var(--mono);font-size:20px;color:var(--muted);flex:0 0 auto}
+#in{flex:1;border:none;outline:none;background:none;font-family:var(--mono);font-size:24px;
+  font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:14px 0;min-width:0;color:var(--ink)}
+#in::placeholder{color:var(--line);text-transform:none;letter-spacing:0;font-size:17px;font-weight:400}
+
+.logwrap{background:var(--card);border-radius:var(--r);flex:1 1 auto;min-height:0;display:flex;
+  flex-direction:column;padding:9px 6px 6px}
+.loghd{display:flex;align-items:center;padding:0 8px 7px;font-size:12.5px;color:var(--muted)}
+.loghd button{font-size:12.5px;color:var(--muted);margin-left:auto;text-decoration:underline;
+  text-underline-offset:2px}
+.log{overflow-y:auto;flex:1 1 auto;-webkit-overflow-scrolling:touch}
+.log:empty::after{content:"Press enter to bank a result here.";display:block;padding:4px 8px;
+  font-size:13px;color:var(--line)}
+.e{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;
+  font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums}
+.e+.e{margin-top:1px}
+.e .b{font-weight:600;letter-spacing:.04em}
+.e .w{font-size:12px;color:var(--muted)}
+.e .v{margin-left:auto;font-weight:600;font-size:16px}
+.e .v.pos{color:var(--long)} .e .v.neg{color:var(--short)} .e .v.zero{color:var(--muted)}
+.e.best{background:var(--longbg)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (min-width:520px){body{max-width:460px;margin:0 auto}}
 </style>
 </head>
 <body>
-<div class="container">
 
-  <div id="settings">
-    <h1>Arithmetic Game</h1>
+<div class="out">
+  <div class="val"><div class="num none" id="num">&mdash;</div><div class="expr" id="expr"></div></div>
+  <div class="legs"><span id="legs"></span><span class="note" id="note"></span></div>
+</div>
 
-    <div class="settings">
-      <div class="operation">
-        <div class="operation-title">
-          <input type="checkbox" id="add" checked>
-          <label for="add">Addition</label>
-        </div>
-        <div class="range">
-          Range: (
-          <input id="addMin1" type="number" value="2">
-          to
-          <input id="addMax1" type="number" value="100">
-          )
-          +
-          (
-          <input id="addMin2" type="number" value="2">
-          to
-          <input id="addMax2" type="number" value="100">
-          )
-        </div>
-      </div>
+<div class="shapes" id="shapes"></div>
 
-      <div class="operation">
-        <div class="operation-title">
-          <input type="checkbox" id="sub" checked>
-          <label for="sub">Subtraction</label>
-        </div>
-        <div class="note">Addition problems in reverse.</div>
-      </div>
+<div class="entry">
+  <span class="caret">&rsaquo;</span>
+  <input id="in" placeholder="ad5" autocomplete="off" autocorrect="off" autocapitalize="off"
+         spellcheck="false" enterkeyhint="done" aria-label="Bet entry">
+</div>
 
-      <div class="operation">
-        <div class="operation-title">
-          <input type="checkbox" id="mul" checked>
-          <label for="mul">Multiplication</label>
-        </div>
-        <div class="range">
-          Range: (
-          <input id="mulMin1" type="number" value="2">
-          to
-          <input id="mulMax1" type="number" value="12">
-          )
-          ×
-          (
-          <input id="mulMin2" type="number" value="2">
-          to
-          <input id="mulMax2" type="number" value="100">
-          )
-        </div>
-      </div>
-
-      <div class="operation">
-        <div class="operation-title">
-          <input type="checkbox" id="div" checked>
-          <label for="div">Division</label>
-        </div>
-        <div class="note">Multiplication problems in reverse.</div>
-      </div>
-
-      <div class="time-setting">
-        Time before answer:
-        <input id="timeInput" type="number" value="3" min="0.1" step="0.1">
-        seconds
-      </div>
-
-      <div class="god-setting" style="margin-top:24px;">
-        <label>
-          <input type="checkbox" id="godMode">
-          God Mode — type your answer
-        </label>
-      </div>
-
-      <div class="mode-setting">
-        <div>Mode:</div>
-        <label>
-          <input type="radio" name="mode" value="manual" checked>
-          Manual — click Next
-        </label>
-        <label>
-          <input type="radio" name="mode" value="timed">
-          Timed session — automatic Next
-        </label>
-
-        <div id="sessionDurationRow" style="display:none; margin-left:28px;">
-          Session duration:
-          <input id="sessionDuration" type="number" value="120" min="1" step="1">
-          seconds
-        </div>
-      </div>
-
-      <button id="start" type="button">Start</button>
-    </div>
-  </div>
-
-  <div id="game" style="display:none;">
-    <div id="sessionTimer"></div>
-    <div id="problem"></div>
-    <div id="timer"></div>
-    <div id="answer"></div>
-    <div id="resultMark" aria-live="polite"></div>
-    <input id="userAnswer" type="text" inputmode="numeric" autocomplete="off"
-      placeholder="Type your answer"
-      style="display:none; font-size:28px; width:180px; padding:8px; text-align:center;">
-    <button id="next" type="button">Next</button>
-    <div id="sessionDone"></div>
-    <div class="hint">In manual mode, press Space for Next.</div>
-  </div>
-
+<div class="logwrap">
+  <div class="loghd"><span>Last 10</span><button id="clr">clear</button></div>
+  <div class="log" id="log"></div>
 </div>
 
 <script>
-let currentAnswer = null;
-let questionTimer = null;
-let sessionTimer = null;
-let timeLimit = 3;
-let mode = "manual";
-let sessionEndTime = null;
-let questionCount = 0;
-let correctCount = 0;
-let running = false;
-let godMode = false;
-let answerShown = false;
+var LEFT="ABCDEFGHIJKLM", RIGHT="NOPQRSTUVWXYZ";
+function rowOf(c){var i=LEFT.indexOf(c);return i>=0?i+1:RIGHT.indexOf(c)+1;}
+function fmt(v){return v>0?"+"+v:v<0?"\u2212"+Math.abs(v):"0";}
 
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+var SHAPES=[["++",[1,1]],["+\u2212",[1,-1]],["\u2212\u2212",[-1,-1]],["+",[1]],["\u2212",[-1]]];
+var shape=0, log=[];
+
+var inp=document.getElementById("in"), frozen=null;
+
+function parse(txt,sg){
+  var legs=[], dig="", err=null;
+  txt=txt.toUpperCase();
+  for(var i=0;i<txt.length;i++){
+    var ch=txt[i];
+    if(ch>="A"&&ch<="Z"){ legs.push({c:ch,s:null}); }
+    else if(ch==="+"){ if(legs.length) legs[legs.length-1].s=1; }
+    else if(ch==="-"||ch==="\u2212"){ if(legs.length) legs[legs.length-1].s=-1; }
+    else if(ch>="0"&&ch<="9"){ dig+=ch; }
+  }
+  if(legs.length>2) err="Two letters max";
+  var w = dig===""?null:parseInt(dig,10);
+  if(w!==null&&(w<1||w>13)) err=err||"Winning row is 1 to 13";
+  legs.forEach(function(l,i){ if(l.s===null) l.s=sg[Math.min(i,sg.length-1)]; l.r=rowOf(l.c); });
+  return {legs:legs.slice(0,2), w:w, err:err};
 }
 
-function value(id) {
-  return parseInt(document.getElementById(id).value, 10);
+function evaluate(p){
+  if(p.err||!p.legs.length) return null;
+  var A=0,n=0;
+  p.legs.forEach(function(l){A+=l.s*l.r;n+=l.s;});
+  if(n===0) return {A:A,n:n,v:A,certain:true};
+  if(p.w===null) return {A:A,n:n,pending:true};
+  var wins=0; for(var x=1;x<=13;x++) if(A-n*x>0) wins++;
+  return {A:A,n:n,v:A-n*p.w,wins:wins};
 }
 
-function generateProblem() {
-  const operations = [];
-  if (document.getElementById("add").checked) operations.push("+");
-  if (document.getElementById("sub").checked) operations.push("-");
-  if (document.getElementById("mul").checked) operations.push("×");
-  if (document.getElementById("div").checked) operations.push("÷");
+function labelOf(legs){
+  return legs.map(function(l){return l.c+(l.s>0?"+":"\u2212")}).join("");
+}
 
-  if (operations.length === 0) {
-    alert("Select at least one operation.");
-    return null;
-  }
-
-  const op = operations[randomInt(0, operations.length - 1)];
-  let a, b;
-
-  if (op === "+" || op === "-") {
-    a = randomInt(value("addMin1"), value("addMax1"));
-    b = randomInt(value("addMin2"), value("addMax2"));
-
-    if (op === "+") {
-      currentAnswer = a + b;
-      return `${a} + ${b}`;
-    } else {
-      currentAnswer = b;
-      return `${a + b} − ${a}`;
-    }
-  }
-
-  a = randomInt(value("mulMin1"), value("mulMax1"));
-  b = randomInt(value("mulMin2"), value("mulMax2"));
-
-  if (op === "×") {
-    currentAnswer = a * b;
-    return `${a} × ${b}`;
+function viewOf(p,st,ev){
+  if(!st) return {num:null,expr:"",legs:p?p.legs:[],warn:!!(p&&p.err),
+    note:(p&&p.err)?p.err:"Type letters, then the winning row"};
+  if(st.pending) return {num:null,legs:p.legs,warn:false,
+    expr:fmt(st.A)+(st.n>0?" \u2212 ":" + ")+(Math.abs(st.n)>1?Math.abs(st.n):"")+"w",
+    note:"Enter for EV at row 7"};
+  var expr,note;
+  if(st.certain){
+    expr=p.legs.filter(function(l){return l.s>0})[0].r+" \u2212 "+
+         p.legs.filter(function(l){return l.s<0})[0].r;
+    note="Certain, any winning row";
   } else {
-    currentAnswer = b;
-    return `${a * b} ÷ ${a}`;
+    var t=-st.n*p.w;
+    expr=fmt(st.A)+(t>=0?" + ":" \u2212 ")+Math.abs(t);
+    note=(ev?"EV at row 7":"Row "+p.w)+", profits on "+st.wins+" of 13";
   }
+  return {num:st.v,expr:expr,legs:p.legs,note:note,warn:false};
 }
 
-function showSettings() {
-  running = false;
-  clearInterval(questionTimer);
-  clearInterval(sessionTimer);
-  document.getElementById("game").style.display = "none";
-  document.getElementById("settings").style.display = "block";
-}
-
-function finishSession() {
-  running = false;
-  clearInterval(questionTimer);
-  clearInterval(sessionTimer);
-  document.getElementById("problem").textContent = "Finished!";
-  document.getElementById("timer").textContent = "";
-  document.getElementById("answer").textContent = "";
-  document.getElementById("resultMark").textContent = "";
-  document.getElementById("resultMark").style.color = "";
-  document.getElementById("next").style.display = "none";
-  document.getElementById("userAnswer").style.display = "none";
-  document.getElementById("sessionTimer").textContent = "Session: 0.0 s";
-
-  if (godMode && mode === "timed") {
-    const accuracy = questionCount > 0
-      ? Math.round((correctCount / questionCount) * 100)
-      : 0;
-
-    document.getElementById("sessionDone").innerHTML =
-      "<strong>God Mode Score</strong><br>" +
-      "Calculations proposed: " + questionCount + "<br>" +
-      "Correct before time limit: " + correctCount + "<br>" +
-      "Accuracy: " + accuracy + "%";
-  } else {
-    document.getElementById("sessionDone").textContent =
-      questionCount + " problems completed";
-  }
-}
-
-function updateSessionClock() {
-  if (!running || mode !== "timed") return;
-
-  const remaining = Math.max(0, sessionEndTime - Date.now());
-  document.getElementById("sessionTimer").textContent =
-    "Session: " + (remaining / 1000).toFixed(1) + " s";
-
-  if (remaining <= 0) finishSession();
-}
-
-function revealAnswer() {
-  if (!running) return;
-
-  clearInterval(questionTimer);
-  answerShown = true;
-
-  document.getElementById("timer").textContent = "0.0 s";
-  // Always show the correct answer at the end of the countdown,
-  // including in God Mode.
-  document.getElementById("answer").textContent = currentAnswer;
-  document.getElementById("resultMark").textContent = "";
-
-  document.getElementById("userAnswer").style.display = "none";
-
-  if (mode === "timed") {
-    const answerDisplayTime = 700;
-
-    setTimeout(() => {
-      if (!running) return;
-
-      if (Date.now() >= sessionEndTime) {
-        finishSession();
-      } else {
-        nextProblem();
-      }
-    }, answerDisplayTime);
-  } else {
-    document.getElementById("next").style.display = "inline-block";
-  }
-}
-
-function checkGodAnswer() {
-  if (!running || !godMode || answerShown) return;
-
-  const input = document.getElementById("userAnswer");
-  const raw = input.value.trim();
-
-  // Let the user type the complete number freely.
-  // Do not evaluate partial answers.
-  if (!/^-?\d+$/.test(raw)) return;
-
-  const userValue = parseInt(raw, 10);
-
-  if (userValue === currentAnswer) {
-    correctCount++;
-    answerShown = true;
-    clearInterval(questionTimer);
-
-    // Show exactly the number the user got right + green check.
-    document.getElementById("answer").textContent = raw;
-    document.getElementById("resultMark").textContent = "✓";
-    document.getElementById("resultMark").style.color = "#20a040";
-    input.style.display = "none";
-
-    if (mode === "timed") {
-      setTimeout(() => {
-        if (!running) return;
-
-        if (Date.now() >= sessionEndTime) {
-          finishSession();
-        } else {
-          nextProblem();
-        }
-      }, 700);
-    } else {
-      document.getElementById("next").style.display = "inline-block";
-    }
-  }
-}
-function nextProblem() {
-  if (!running) return;
-
-  clearInterval(questionTimer);
-
-  if (mode === "timed" && Date.now() >= sessionEndTime) {
-    finishSession();
-    return;
-  }
-
-  const problem = generateProblem();
-  if (!problem) return;
-
-  questionCount++;
-  answerShown = false;
-  document.getElementById("problem").textContent = problem;
-  document.getElementById("answer").textContent = "";
-  document.getElementById("resultMark").textContent = "";
-  document.getElementById("resultMark").style.color = "";
-  document.getElementById("next").style.display = "none";
-
-  const answerInput = document.getElementById("userAnswer");
-  answerInput.value = "";
-  document.getElementById("resultMark").textContent = "";
-  if (godMode) {
-    answerInput.style.display = "inline-block";
-    setTimeout(() => answerInput.focus(), 0);
-  } else {
-    answerInput.style.display = "none";
-  }
-
-  let remaining = timeLimit;
-  document.getElementById("timer").textContent =
-    remaining.toFixed(1) + " s";
-
-  const startTime = Date.now();
-
-  questionTimer = setInterval(() => {
-    remaining = timeLimit - (Date.now() - startTime) / 1000;
-
-    if (remaining <= 0) {
-      revealAnswer();
-    } else {
-      document.getElementById("timer").textContent =
-        remaining.toFixed(1) + " s";
-    }
-  }, 50);
-}
-
-function start() {
-  timeLimit = parseFloat(document.getElementById("timeInput").value);
-  mode = document.querySelector('input[name="mode"]:checked').value;
-  godMode = document.getElementById("godMode").checked;
-
-  if (!Number.isFinite(timeLimit) || timeLimit <= 0) {
-    alert("Enter a valid time before the answer.");
-    return;
-  }
-
-  if (mode === "timed") {
-    const duration = parseFloat(document.getElementById("sessionDuration").value);
-    if (!Number.isFinite(duration) || duration <= 0) {
-      alert("Enter a valid session duration.");
-      return;
-    }
-    sessionEndTime = Date.now() + duration * 1000;
-  }
-
-  running = true;
-  questionCount = 0;
-  correctCount = 0;
-  clearInterval(questionTimer);
-  clearInterval(sessionTimer);
-
-  document.getElementById("settings").style.display = "none";
-  document.getElementById("game").style.display = "block";
-  document.getElementById("sessionDone").textContent = "";
-
-  if (mode === "timed") {
-    document.getElementById("sessionTimer").style.display = "block";
-    updateSessionClock();
-    sessionTimer = setInterval(updateSessionClock, 100);
-  } else {
-    document.getElementById("sessionTimer").style.display = "none";
-  }
-
-  nextProblem();
-}
-
-document.querySelectorAll('input[name="mode"]').forEach(radio => {
-  radio.addEventListener("change", () => {
-    document.getElementById("sessionDurationRow").style.display =
-      radio.value === "timed" && radio.checked ? "block" : "none";
+function paint(v){
+  var num=document.getElementById("num");
+  num.textContent = v.num===null?"\u2014":fmt(v.num);
+  num.className = "num "+(v.num===null?"none":v.num>0?"pos":v.num<0?"neg":"zero");
+  document.getElementById("expr").textContent=v.expr;
+  var lg=document.getElementById("legs"); lg.innerHTML="";
+  v.legs.forEach(function(l){
+    var d=document.createElement("span");
+    d.className="leg "+(l.s>0?"p":"m");
+    d.textContent=l.c+(l.s>0?"+":"\u2212")+" "+l.r;
+    lg.appendChild(d);
   });
+  var nt=document.getElementById("note");
+  nt.className="note"+(v.warn?" warn":""); nt.textContent=v.note;
+}
+
+function render(){
+  var v;
+  if(inp.value==="" && frozen) v=frozen;
+  else { var p=parse(inp.value,SHAPES[shape][1]); v=viewOf(p,evaluate(p),false); }
+  paint(v);
+  document.querySelectorAll(".sh").forEach(function(b,i){b.classList.toggle("on",i===shape);});
+}
+
+function commit(){
+  var p=parse(inp.value,SHAPES[shape][1]), st=evaluate(p), ev=false;
+  if(!st) return;
+  if(st.pending){ p.w=7; ev=true; st=evaluate(p); }
+  log.unshift({k:labelOf(p.legs), w:st.certain?"any w":(ev?"EV":"w"+p.w), v:st.v});
+  if(log.length>10) log.pop();
+  frozen=viewOf(p,st,ev);
+  inp.value=""; drawLog(); render();
+}
+
+function drawLog(){
+  var best=log.length>1?Math.max.apply(null,log.map(function(e){return e.v})):null;
+  var box=document.getElementById("log"); box.innerHTML="";
+  log.forEach(function(e){
+    var d=document.createElement("div");
+    d.className="e"+(best!==null&&e.v===best?" best":"");
+    d.innerHTML='<span class="b">'+e.k+'</span><span class="w">'+e.w+
+      '</span><span class="v '+(e.v>0?"pos":e.v<0?"neg":"zero")+'">'+fmt(e.v)+'</span>';
+    box.appendChild(d);
+  });
+}
+
+var sw=document.getElementById("shapes");
+SHAPES.forEach(function(sp,i){
+  var b=document.createElement("button"); b.className="sh";
+  b.innerHTML=sp[0].split("").map(function(g){
+    return '<i class="'+(g==="+"?"a":"b")+'">'+g+'</i>';}).join("");
+  b.setAttribute("aria-label",sp[1].map(function(x){return x>0?"plus":"minus"}).join(" "));
+  b.addEventListener("mousedown",function(e){e.preventDefault();});
+  b.addEventListener("touchstart",function(e){e.preventDefault();},{passive:false});
+  b.onclick=function(){shape=i;frozen=null;render();inp.focus();};
+  sw.appendChild(b);
 });
 
-document.getElementById("start").addEventListener("click", start);
-document.getElementById("next").addEventListener("click", nextProblem);
-document.getElementById("userAnswer").addEventListener("input", (event) => {
-  // Keep only digits and an optional leading minus sign.
-  let v = event.target.value.replace(/[^0-9-]/g, "");
-  if (v.indexOf("-") > 0) v = v.replace(/-/g, "");
-  if (v.startsWith("--")) v = "-" + v.slice(2);
-  event.target.value = v;
-  checkGodAnswer();
+inp.addEventListener("input",function(){frozen=null;render();});
+inp.addEventListener("keydown",function(e){
+  if(e.key==="Enter"){e.preventDefault();commit();}
+  if(e.key==="Escape"){inp.value="";frozen=null;render();}
 });
+document.getElementById("clr").onclick=function(){log=[];frozen=null;drawLog();render();inp.focus();};
+document.querySelector(".entry").onclick=function(){inp.focus();};
 
-document.addEventListener("keydown", event => {
-  if (event.code === "Space" && running && mode === "manual") {
-    event.preventDefault();
-    if (document.getElementById("next").style.display !== "none") {
-      nextProblem();
-    }
-  }
-});
+render(); drawLog(); inp.focus();
 </script>
 </body>
 </html>
